@@ -41,11 +41,11 @@ if __name__ == '__main__':
     # --- 2. 直接定义变量 (硬编码) ---
 
     data_name = 'flickr'
-    flickr_pkl_path = "./data/flickr30k/flickr30k_text_to_image_retrieval_from_json.pkl"  # <--- 修改这里
-    flickr_image_dir = "./data/flickr30k/flickr30k-images"  #
+    flickr_pkl_path = "/home/iiserver31/Workbench/likaipeng/IRgen/data/flick30k/flickr30k_text_to_image_retrieval_from_json.pkl"  # <--- 修改这里
+    flickr_image_dir = "/home/iiserver31/Workbench/likaipeng/IRgen/data/flick30k/flickr30k-images"  #
     output_npy_path = "flickr30k_imlist_clip_features.npy"
     clip_model_name = 'ViT-B/16'
-    batch_size = 256
+    batch_size = 1024
 
     # --- 数据集加载 ---
     Dataset = None
@@ -71,7 +71,10 @@ if __name__ == '__main__':
     # 加载模型和预处理器
     mm, clip_preprocess = clip.load(clip_model_name, device=device)
     visual_encoder = mm.visual.eval()
-
+    # --- 新增下面这行 ---
+    print("Converting visual encoder to Float32...")
+    visual_encoder = visual_encoder.float()
+    # --- 结束新增 ---
     # --- 重新设置/加载数据集，确保使用 CLIP 的预处理器 ---
     print("Setting dataset transform using CLIP preprocess...")
     if data_name == 'flickr':
