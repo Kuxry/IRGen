@@ -1,6 +1,7 @@
 import os
 import time
-import pickle  # <--- 添加导入
+# import pickle  # pickle 仍然需要用来加载 rq_data，所以保留
+import pickle
 import torch
 import torch.nn as nn
 import numpy as np
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     # WandB 初始化
     wandb.init(project='IRGen-Flickr30k-T2I-improved', name='decoder8_dropout0.5_wd0.01_lr3e-6_patience5', config=config) # 更新 run name
 
-    # 加载 RQ codes
+    # 加载 RQ codes (仍然使用 pickle)
     try:
         with open(config['rq_codes_pkl_path'], 'rb') as f:
             rq_data = pickle.load(f)
@@ -98,8 +99,7 @@ if __name__ == '__main__':
     scheduler = ReduceLROnPlateau(
         optimizer, mode='min', factor=0.3,
         patience=config['patience'] // 2,
-        min_lr=1e-7,
-        verbose=True
+        min_lr=1e-7
     )
 
     criterion = nn.CrossEntropyLoss(label_smoothing=config['smoothing'])
@@ -174,16 +174,18 @@ if __name__ == '__main__':
             if current_val_loss < best_val_loss:
                 best_val_loss = current_val_loss
                 early_stopping_wait = 0
-                # --- 修改：保存最佳模型为 .pkl ---
-                best_model_path = os.path.join(config['output_dir'], 'best_model.pkl') # 改扩展名
+                # --- 修改：使用 torch.save 保存最佳模型，但保留 .pkl 扩展名 ---
+                best_model_path = os.path.join(config['output_dir'], 'best_model.pkl') # 保持 .pkl 扩展名
                 try:
-                    with open(best_model_path, 'wb') as f:
-                        pickle.dump(model.state_dict(), f) # 使用 pickle.dump 保存 state_dict
-                    print(f"Validation loss improved. Saved best model state_dict to {best_model_path}")
-                    logger.info(f"Validation loss improved to {best_val_loss:.4f}. Saved best model state_dict to {best_model_path}")
+                    # 使用 torch.save 保存 state_dict 到文件对象 f
+                    torch.save(model.state_dict(), best_model_path)
+                    # 注意：torch.save 也可以直接接受路径字符串作为参数：
+                    # torch.save(model.state_dict(), best_model_path)
+                    print(f"Validation loss improved. Saved best model state_dict to {best_model_path} using torch.save")
+                    logger.info(f"Validation loss improved to {best_val_loss:.4f}. Saved best model state_dict to {best_model_path} using torch.save")
                 except Exception as e:
-                    print(f"Error saving best model state_dict with pickle: {e}")
-                    logger.error(f"Error saving best model state_dict with pickle: {e}")
+                    print(f"Error saving best model state_dict with torch.save: {e}")
+                    logger.error(f"Error saving best model state_dict with torch.save: {e}")
                 # --- 结束修改 ---
             else:
                 early_stopping_wait += 1
@@ -193,9 +195,9 @@ if __name__ == '__main__':
                     logger.warning(f"Early stopping triggered at epoch {epoch + 1}.")
                     break
 
-        # --- 修改：定期保存 checkpoint 为 .pkl ---
+        # --- 修改：使用 torch.save 定期保存 checkpoint，但保留 .pkl 扩展名 ---
         if (epoch + 1) % 10 == 0:
-            ckpt_path = os.path.join(config['output_dir'], f'checkpoint_epoch_{epoch + 1}.pkl') # 改扩展名
+            ckpt_path = os.path.join(config['output_dir'], f'checkpoint_epoch_{epoch + 1}.pkl') # 保持 .pkl 扩展名
             ckpt_data = {
                 'epoch': epoch + 1,
                 'model_state_dict': model.state_dict(), # Checkpoint 包含 state_dict
@@ -203,27 +205,27 @@ if __name__ == '__main__':
                 'best_val_loss': best_val_loss,
             }
             try:
-                with open(ckpt_path, 'wb') as f:
-                    pickle.dump(ckpt_data, f) # 使用 pickle.dump 保存整个 checkpoint 字典
-                print(f"Saved checkpoint to {ckpt_path}")
-                logger.info(f"Saved checkpoint at epoch {epoch + 1} to {ckpt_path}")
+                # 使用 torch.save 保存整个 checkpoint 字典
+                torch.save(ckpt_data, ckpt_path)
+                print(f"Saved checkpoint to {ckpt_path} using torch.save")
+                logger.info(f"Saved checkpoint at epoch {epoch + 1} to {ckpt_path} using torch.save")
             except Exception as e:
-                print(f"Error saving checkpoint with pickle: {e}")
-                logger.error(f"Error saving checkpoint with pickle: {e}")
+                print(f"Error saving checkpoint with torch.save: {e}")
+                logger.error(f"Error saving checkpoint with torch.save: {e}")
         # --- 结束修改 ---
 
 
     # --- 训练结束 ---
-    # --- 修改：保存最终模型为 .pkl ---
-    final_model_path = os.path.join(config['output_dir'], 'final_model.pkl') # 改扩展名
+    # --- 修改：使用 torch.save 保存最终模型，但保留 .pkl 扩展名 ---
+    final_model_path = os.path.join(config['output_dir'], 'final_model.pkl') # 保持 .pkl 扩展名
     try:
-        with open(final_model_path, 'wb') as f:
-            pickle.dump(model.state_dict(), f) # 使用 pickle.dump 保存 state_dict
-        print(f"Saved final model state_dict to {final_model_path}")
-        logger.info(f"Training finished. Saved final model state_dict to {final_model_path}")
+        # 使用 torch.save 保存 state_dict
+        torch.save(model.state_dict(), final_model_path)
+        print(f"Saved final model state_dict to {final_model_path} using torch.save")
+        logger.info(f"Training finished. Saved final model state_dict to {final_model_path} using torch.save")
     except Exception as e:
-        print(f"Error saving final model state_dict with pickle: {e}")
-        logger.error(f"Error saving final model state_dict with pickle: {e}")
+        print(f"Error saving final model state_dict with torch.save: {e}")
+        logger.error(f"Error saving final model state_dict with torch.save: {e}")
     # --- 结束修改 ---
 
     wandb.finish()
